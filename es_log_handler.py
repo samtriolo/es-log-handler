@@ -1,3 +1,7 @@
+"""
+A logging handler that sends ECS-formatted logs to Elasticsearch.
+"""
+
 import logging
 import sys
 
@@ -5,12 +9,12 @@ from elasticsearch import Elasticsearch, AuthenticationException, NotFoundError,
 from ecs_logging import StdlibFormatter
 
 
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-
 stdout_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 stdout_handler = logging.StreamHandler(sys.stdout)
 stdout_handler.setFormatter(stdout_formatter)
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 log.addHandler(stdout_handler)
 
 
@@ -47,7 +51,8 @@ class ElasticsearchStdlibHandler(logging.Handler):
 
         Notes
         1) It seems like es.indices.exists() above would implicitly check for an unkown host, and if so, return
-        elasticsearch.NotFoundError, however it will simply return False in that case, so we need to check for it here
+        elasticsearch.NotFoundError. However, it will simply return False in that case, so we need to check for it here.
+
         2) ES index already exists. My understanding is, this should probably only happen if eg two separate python apps
         attempt to create the same index, at the same time, which doesn't already exist.
 
@@ -61,7 +66,7 @@ class ElasticsearchStdlibHandler(logging.Handler):
             self.es = None
         except AuthorizationException:
             log.critical('ES unauthorized action! We cannot log any events to ES! ES log handler requires the following '
-                         'index permissions: read, write, create_index, view_index_metadata')
+                         'index permissions: write, create_index, view_index_metadata')
             self.es = None
         except Exception as e:
             log.critical(f'Unhandled ES exception! We will not log any events to ES! Additional info: {e}')
@@ -72,7 +77,7 @@ class ElasticsearchStdlibHandler(logging.Handler):
                     self.es.indices.create(index=self.index)
                 except AuthorizationException:
                     log.critical('ES unauthorized action! We cannot log any events to ES! ES log handler requires the following '
-                                 'index permissions: read, write, create_index, view_index_metadata')
+                                 'index permissions: write, create_index, view_index_metadata')
                     self.es = None
                 except NotFoundError:  # see note 1
                     log.critical('ES Host Not Found (check ES hostname)! We will not log any events to ES!')
